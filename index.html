@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>计时口算</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .content {
+        display: flex;
+        justify-content: space-between;
+      }
+      .left-content {
+        width: 70%;
+        padding-right: 20px;
+      }
+      .right-content {
+        width: 30%;
+      }
+      .timer-section {
+        margin-bottom: 30px;
+      }
+      #timerSelect {
+        margin-right: 10px;
+        padding: 10px;
+        font-size: 20px;
+      }
+      #countdown, #startButton {
+        font-size: 18px;
+        margin-right: 10px;
+      }
+
+      #startButton {
+        background-color: green;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+      }
+
+      #startButton:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      
+      .question-section {
+        font-size: 32px;
+        margin-bottom: 20px;
+        display: none;
+      }
+      #answerInput {
+        font-size: 18px;
+        margin-right: 10px;
+      }
+      #confirmButton {
+        font-size: 18px;
+      }
+      .result-section {
+        margin-top: 30px;
+        display: none;
+      }
+      .history-list {
+        border: 1px solid #ccc;
+        padding: 10px;
+      }
+      .history-item {
+        margin-bottom: 10px;
+      }
+
+      @media (max-width: 900px) {
+        .content {
+          flex-direction: column;
+        }
+        .left-content, .right-content {
+          width: 100%;
+          padding-right: 0;
+        }
+        .right-content {
+          margin-top: 30px;
+        }
+      }
+      .number-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 30px;
+        margin-top: 20px;
+      }
+      .number-button {
+        font-size: 25px;
+        padding: 20px 22px;
+        cursor: pointer;
+      }
+      .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #clearHistoryButton {
+        font-size: 14px;
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>计时口算</h1>
+      <div class="content">
+        <div class="left-content">
+          <div class="timer-section">
+            <select id="timerSelect">
+              <option value="1">1分钟</option>
+              <option value="2" selected>2分钟</option>
+              <option value="3">3分钟</option>
+              <option value="4">4分钟</option>
+              <option value="5">5分钟</option>
+            </select>
+            <span id="countdown">05:00</span>
+            <button id="startButton">开始计时</button>
+          </div>
+          <div class="question-section">
+            <span id="num1"></span>
+            <span id="operator"></span>
+            <span id="num2"></span>
+            <span>=</span>
+            <span id="userAnswer"></span>
+            <div class="number-buttons">
+              <!-- 数字按钮将通过 JavaScript 动态生成 -->
+            </div>
+          </div>
+          
+          <div class="result-section">
+            <h2>计算结果</h2>
+            <p>总计算题数量：<span id="totalQuestions"></span></p>
+            <p>正确数量：<span id="correctAnswers"></span></p>
+            <p>错误数量：<span id="wrongAnswers"></span></p>
+            <p>总时间：<span id="totalTime"></span></p>
+            <h3>错误题目：</h3>
+            <div id="wrongQuestions"></div>
+          </div>
+        </div>
+        <div class="right-content">
+          <div class="history-header">
+            <h2>口算历史</h2>
+            <button id="clearHistoryButton">清除历史</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      // 获取DOM元素
+      const timerSelect = document.getElementById('timerSelect');
+      const countdown = document.getElementById('countdown');
+      const startButton = document.getElementById('startButton');
+      const num1 = document.getElementById('num1');
+      const operator = document.getElementById('operator');
+      const num2 = document.getElementById('num2');
+      const userAnswer = document.getElementById('userAnswer');
+      const numberButtons = document.querySelector('.number-buttons');
+      const resultSection = document.querySelector('.result-section');
+      const totalQuestions = document.getElementById('totalQuestions');
+      const correctAnswers = document.getElementById('correctAnswers');
+      const wrongAnswers = document.getElementById('wrongAnswers');
+      const totalTime = document.getElementById('totalTime');
+      const historyList = document.getElementById('historyList');
+      const wrongQuestions = document.getElementById('wrongQuestions');
+
+      let timer;
+      let remainingTime;
+      let currentQuestion;
+      let questionCount = 0;
+      let correctCount = 0;
+      let startTime;
+      let wrongQuestionsList = [];
+
+      // 获取清除历史按钮
+      const clearHistoryButton = document.getElementById('clearHistoryButton');
+
+      // 清除历史记录
+      function clearHistory() {
+        if (confirm('确定要清空所有历史记录吗？')) {
+          localStorage.removeItem('calculationHistory');
+          loadHistory();
+        }
+      }
+
+      // 生成数字按钮
+      function generateNumberButtons() {
+        for (let i = 0; i <= 10; i++) {
+          const button = document.createElement('button');
+          button.textContent = i;
+          button.className = 'number-button';
+          button.addEventListener('click', () => selectAnswer(i));
+          numberButtons.appendChild(button);
+        }
+      }
+
+      // 选择答案
+      function selectAnswer(answer) {
+        if (remainingTime <= 0) return;
+        userAnswer.textContent = answer;
+        checkAnswer(answer);
+      }
+
+      // 开始测试
+      function startQuiz() {
+        remainingTime = timerSelect.value * 60;
+        startTime = new Date();
+        updateCountdown();
+        timer = setInterval(updateCountdown, 1000);
+        startButton.disabled = true;
+        timerSelect.disabled = true;
+        questionCount = 0;
+        correctCount = 0;
+        wrongQuestionsList = [];
+        resultSection.style.display = 'none';
+        document.querySelector('.question-section').style.display = 'block';
+        numberButtons.style.display = 'flex';
+        generateQuestion();
+      }
+
+      // 更新倒计时
+      function updateCountdown() {
+        if (remainingTime <= 0) {
+          clearInterval(timer);
+          endQuiz();
+        } else {
+          const minutes = Math.floor(remainingTime / 60);
+          const seconds = remainingTime % 60;
+          countdown.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          remainingTime--;
+        }
+      }
+
+      // 生成题目
+      function generateQuestion() {
+        let n1, n2, op;
+        op = Math.random() < 0.5 ? '+' : '-';
+        if (op === '+') {
+          n1 = Math.floor(Math.random() * 10) + 1;
+          n2 = Math.floor(Math.random() * (9 - n1)) + 1;
+        } else {
+          n1 = Math.floor(Math.random() * 10) + 1;
+          n2 = Math.floor(Math.random() * n1) + 1;
+        }
+        
+        num1.textContent = n1;
+        operator.textContent = op;
+        num2.textContent = n2;
+        userAnswer.textContent = '';
+
+        currentQuestion = {
+          n1: n1,
+          n2: n2,
+          op: op,
+          answer: op === '+' ? n1 + n2 : n1 - n2
+        };
+      }
+
+      // 检查答案
+      function checkAnswer(userAnswer) {
+        questionCount++;
+        if (userAnswer === currentQuestion.answer) {
+          correctCount++;
+        } else {
+          wrongQuestionsList.push({
+            ...currentQuestion,
+            userAnswer: userAnswer
+          });
+        }
+
+        if (remainingTime > 0) {
+          generateQuestion();
+        } else {
+          endQuiz();
+        }
+      }
+
+      // 结束测试
+      function endQuiz() {
+        clearInterval(timer);
+        resultSection.style.display = 'block';
+        document.querySelector('.question-section').style.display = 'none';
+        numberButtons.style.display = 'none';
+        startButton.disabled = false;
+        timerSelect.disabled = false;
+
+        const endTime = new Date();
+        const duration = Math.round((endTime - startTime) / 1000);
+
+        totalQuestions.textContent = questionCount;
+        correctAnswers.textContent = correctCount;
+        wrongAnswers.textContent = questionCount - correctCount;
+        totalTime.textContent = `${Math.floor(duration / 60)}分`;
+
+        // 显示错误题目
+        wrongQuestions.innerHTML = '';
+        wrongQuestionsList.forEach((q, index) => {
+          const wrongItem = document.createElement('p');
+          wrongItem.textContent = `${index + 1}. ${q.n1} ${q.op} ${q.n2} = ${q.answer}，你的答案：${q.userAnswer}`;
+          wrongQuestions.appendChild(wrongItem);
+        });
+
+        // 添加到历史记录
+        const historyItem = `${new Date().toLocaleString()} - 总题数: ${questionCount}, 正确: ${correctCount}, 用时: ${Math.floor(duration / 60)}分`;
+        saveHistory(historyItem);
+      }
+
+      // 加载历史记录
+      function loadHistory() {
+        const history = JSON.parse(localStorage.getItem('calculationHistory')) || [];
+        historyList.innerHTML = '';
+        history.forEach(item => {
+          const historyItem = document.createElement('div');
+          historyItem.className = 'history-item';
+          historyItem.textContent = item;
+          historyList.appendChild(historyItem);
+        });
+        
+        // 根据历史记录是否为空来显示或隐藏清除按钮
+        clearHistoryButton.style.display = history.length > 0 ? 'block' : 'none';
+      }
+
+      // 保存历史记录
+      function saveHistory(newItem) {
+        const history = JSON.parse(localStorage.getItem('calculationHistory')) || [];
+        history.unshift(newItem);
+        if (history.length > 10) {
+          history.pop();
+        }
+        localStorage.setItem('calculationHistory', JSON.stringify(history));
+        loadHistory();
+      }
+
+      // 添加 updateInitialCountdown 函数
+      function updateInitialCountdown() {
+        const minutes = timerSelect.value;
+        countdown.textContent = `${minutes.toString().padStart(2, '0')}:00`;
+      }
+
+      // 初始化
+      startButton.addEventListener('click', startQuiz);
+      timerSelect.addEventListener('change', updateInitialCountdown);
+      clearHistoryButton.addEventListener('click', clearHistory);
+      generateNumberButtons();
+      loadHistory();
+      updateInitialCountdown();
+    </script>
+  </body>
+</html>
