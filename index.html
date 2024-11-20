@@ -249,16 +249,20 @@
         }
       }
 
+      function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min; // 包含min和max
+      }
+
       // 生成题目
       function generateQuestion() {
         let n1, n2, op;
         op = Math.random() < 0.5 ? '+' : '-';
         if (op === '+') {
-          n1 = Math.floor(Math.random() * 10) + 1;
-          n2 = Math.floor(Math.random() * (9 - n1)) + 1;
+          n1 = getRandomInt(2, 8);
+          n2 = getRandomInt(2, 10 - n1);
         } else {
-          n1 = Math.floor(Math.random() * 10) + 1;
-          n2 = Math.floor(Math.random() * n1) + 1;
+          n1 = getRandomInt(3, 10);
+          n2 = getRandomInt(2, n1);
         }
         
         num1.textContent = n1;
