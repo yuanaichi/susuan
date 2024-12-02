@@ -308,6 +308,7 @@
 
         const endTime = new Date();
         const duration = Math.round((endTime - startTime) / 1000);
+        const durationMinutes = duration / 60;
 
         totalQuestions.textContent = questionCount;
         correctAnswers.textContent = correctCount;
@@ -322,8 +323,9 @@
           wrongQuestions.appendChild(wrongItem);
         });
 
-        // 添加到历史记录
-        const historyItem = `${new Date().toLocaleString()} - 总题数: ${questionCount}, 正确: ${correctCount}, 用时: ${Math.floor(duration / 60)}分`;
+        // 添加到历史记录，包含每分钟计算数量
+        const questionsPerMinute = (questionCount / durationMinutes).toFixed(1);
+        const historyItem = `${new Date().toLocaleString()} - 总题数: ${questionCount}, 正确: ${correctCount}, 用时: ${Math.floor(duration / 60)}分, 速度: ${questionsPerMinute}题/分`;
         saveHistory(historyItem);
       }
 
@@ -334,7 +336,15 @@
         history.forEach(item => {
           const historyItem = document.createElement('div');
           historyItem.className = 'history-item';
-          historyItem.textContent = item;
+          // 如果是旧格式的数据（字符串），直接显示
+          if (typeof item === 'string') {
+            historyItem.textContent = item;
+          } else {
+            // 如果是新格式的数据（对象），进行格式化
+            const durationMinutes = item.duration / 60;
+            const questionsPerMinute = (item.questionCount / durationMinutes).toFixed(1);
+            historyItem.textContent = `${new Date(item.timestamp).toLocaleString()} - 总题数: ${item.questionCount}, 正确: ${item.correctCount}, 用时: ${Math.floor(item.duration / 60)}分, 速度: ${questionsPerMinute}题/分`;
+          }
           historyList.appendChild(historyItem);
         });
         
